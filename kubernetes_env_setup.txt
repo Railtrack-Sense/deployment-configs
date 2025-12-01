@@ -12,7 +12,27 @@ Install kubernetes:
 
     export KUBE_EDITOR=nano
 
-    #maybe don't do this for talos clusters, because they already have flannel
+    # SO it turns out, flannel doesn't work for cassandra as its using iptables in legacy mode or something
+    # WOOOO!!! THANKSSSS https://forum.k8ssandra.io/t/statefulset-pods-stuck-in-state-1-2/144/12
+
+    # FOR TALOS, assuming control plane node ip is 192.168.1.155
+    cd talos_kube_configs
+    talosctl get disks --insecure --nodes 192.168.1.155
+    talosctl gen config rts-cluster https://192.168.1.155:6443 --install-disk /dev/vda --config-patch @disable_cni_patch.yaml
+    talosctl apply-config --insecure --nodes 192.168.1.155 --file controlplane.yaml
+    talosctl --talosconfig=./talosconfig config endpoints 192.168.1.155
+    talosctl bootstrap --nodes 192.168.1.155 --talosconfig=./talosconfig
+    talosctl kubeconfig rts-cluster-kubeconfig --nodes 192.168.1.155 --talosconfig=./talosconfig
+
+    # Install calico with:
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.2/manifests/tigera-operator.yaml
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.2/manifests/custom-resources.yaml
+
+    # Check health
+    talosctl --nodes 192.168.1.155 --talosconfig=./talosconfig health
+
+    # Then, for each worker node:
+    talosctl apply-config --insecure --nodes <worker node ip> --file worker.yaml
 
     calico (https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart):
         sudo kubeadm init --pod-network-cidr=192.168.240.0/20
