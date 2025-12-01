@@ -1,0 +1,17 @@
+/*
+ * Structure for all hanlders:
+ * xxxReqHandler:
+ *  Extract token from authentication header
+ *  Introspect token
+ *  Extract url params
+ *  Connect to database
+ *  <check1, if failed, return error>
+ *  <check2, if failed, return error>
+ *  <check3, if failed, return error>
+ *  Do actual stuff and return 200
+ *
+ * NB - IMPORTANT make sure every check has a return statement if it failed
+ * NB - In post request handlers, do everything inside last onData so that logging will be proper (slight performance left on table tho)
+ */
+
+ //REMEMBER writeStatus before writeHeader otherwise you get an automatic 200 OK

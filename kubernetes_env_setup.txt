@@ -176,16 +176,7 @@ sudo systemctl restart smbd.service
 
 folder structure of /railtrack_sense_store:
 -railtrack_sense_store
-    -addon_store
-        -1
-            -1v1.0.0.zip
-    -image_store
-        -thumbnails
-            -fallback.jpg
-        -images
-            -fallback.jpg
-        -featured
-            -fallback.jpg
+    -database_data.file
 
 #To view logs of all containers in an app (eg. data-ingress-backend):
 kubectl logs -l app=data-ingress-backend #(add -f to follow)

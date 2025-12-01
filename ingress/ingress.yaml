@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rts-backend-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - 'dev.rtsense.donutsloth.net'
+        - '*.dev.rtsense.donutsloth.net'
+      secretName: rts-website-tls-secret
+  rules:
+    - host: marketplace.api.dev.rtsense.donutsloth.net
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: data-ingress-backend
+                port:
+                  number: 443
+
+    - host: dashboard.dev.rtsense.donutsloth.net
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: rts-website
+                port:
+                  number: 443
+
+    - host: dev.rtsense.donutsloth.net
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: rts-website
+                port:
+                  number: 443

@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: railtrack-sense-website
+spec:
+  ports:
+    - port: 443
+      targetPort: 3000
+  selector:
+    app: railtrack-sense-website
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: railtrack-sense-website
+spec:
+  selector:
+    matchLabels:
+      app: railtrack-sense-website
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: railtrack-sense-website
+    spec:
+      containers:
+        - name: railtrack-sense-website
+          image: ghcr.io/railtrack-sense/railtrack-sense_website:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NITRO_SSL_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: rts-website-tls-secret
+                  key: tls.crt
+            - name: NITRO_SSL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rts-website-tls-secret
+                  key: tls.key
+
+      imagePullSecrets:
+        - name: github-registry-secret

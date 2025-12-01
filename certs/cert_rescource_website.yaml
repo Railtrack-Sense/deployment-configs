@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: railtrack-sense-tls-website
+spec:
+  secretName: rts-website-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: dev.rtsense.donutsloth.net
+  dnsNames:
+  - '*.dev.rtsense.donutsloth.net'
+  - dev.rtsense.donutsloth.net
