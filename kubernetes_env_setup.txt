@@ -12,6 +12,8 @@ Install kubernetes:
 
     export KUBE_EDITOR=nano
 
+    #maybe don't do this for talos clusters, because they already have flannel
+
     calico (https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart):
         sudo kubeadm init --pod-network-cidr=192.168.240.0/20
 
@@ -121,18 +123,25 @@ Samba csi:
     do we need this?? -> kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/csi-smb-driver.yaml
     curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/install-driver.sh | bash -s v1.18.0 --
     kubectl create secret generic smb-creds --from-literal=username='<username>' --from-literal=password='<password>'
-    kubectl apply -f samba_csi/smb-pv.yaml
-    kubectl apply -f samba_csi/smb-pvc.yaml
+    apply the cassandra storage class yaml
 
     #TO UNINSTALL SAMBA:
     curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/uninstall-driver.sh | bash -s --
 
-Mysql on kubernetes:
-    kubectl create secret generic mysql-root-password --from-literal=password='<password>'
-    apply mysql/mysql_service-deployment
+For cassandra:
 
-standard mysql:
-    https://www.digitalocean.com/community/tutorials/how-to-install-the-latest-mysql-on-debian-10
+    #DONT-
+    #Follow: https://kubernetes.io/docs/tutorials/stateful-application/cassandra/
+    #and apply the yamls in the cassandra folder
+
+    #ACTUALLY, from https://github.com/k8ssandra/cass-operator
+    kubectl apply --force-conflicts --server-side -k github.com/k8ssandra/cass-operator/config/deployments/default?ref=v1.28.0
+
+    #then apply the storage class (NOT the pv and pvc)
+    kubectl -n cass-operator apply -f samba_csi/cass-storage-class.yaml
+
+    #then apply the cassandra/cassandra_datacenter_deployment.yaml
+    kubectl -n cass-operator apply -f cassandra/cassandra_datacenter_deployment.yaml
 
 Import database:
 

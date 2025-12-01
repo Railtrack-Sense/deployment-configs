@@ -1,0 +1,34 @@
+apiVersion: cassandra.datastax.com/v1beta1
+kind: CassandraDatacenter
+metadata:
+  name: dc1
+spec:
+  clusterName: rt-sense-cass-cluster
+  serverType: cassandra
+  serverVersion: "5.0.6"
+  managementApiAuth:
+    insecure: {}
+  size: 3
+  storageConfig:
+    cassandraDataVolumeClaimSpec:
+      storageClassName: cass-storage
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 2000m
+  racks:
+    - name: rack1
+  config:
+    jvm-server-options:
+      initial_heap_size: "1G"
+      max_heap_size: "2G"
+    cassandra-yaml:
+      num_tokens: 16
+      authenticator: PasswordAuthenticator
+      authorizer: CassandraAuthorizer
+      role_manager: CassandraRoleManager

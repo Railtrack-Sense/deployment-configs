@@ -14,7 +14,7 @@ spec:
         - '*.dev.rtsense.donutsloth.net'
       secretName: rts-website-tls-secret
   rules:
-    - host: marketplace.api.dev.rtsense.donutsloth.net
+    - host: datain.api.dev.rtsense.donutsloth.net
       http:
         paths:
           - pathType: Prefix
