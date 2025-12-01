@@ -99,7 +99,7 @@ Setup Metallb (Thank you Thilee on stackoverflow!!!♥ https://stackoverflow.com
     apply confimap: metallb/mllb_confimap.yaml
 
 
-# IMPORTANT- For some reason, dns resolution didn't work. Restart coredns to fix it (Thanks to https://stackoverflow.com/questions/45805483/kubernetes-pods-cant-resolve-hostnames)
+# IMPORTANT- For some reason, sometimes (when you also apply calico on top of flannel, don't do that lol) dns resolution didn't work. Restart coredns to fix it (Thanks to https://stackoverflow.com/questions/45805483/kubernetes-pods-cant-resolve-hostnames)
 kubectl -n kube-system rollout restart deployment coredns
 
 Configure certificates:
@@ -122,7 +122,7 @@ Configure certificates:
 Samba csi:
     do we need this?? -> kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/csi-smb-driver.yaml
     curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/install-driver.sh | bash -s v1.18.0 --
-    kubectl create secret generic smb-creds --from-literal=username='<username>' --from-literal=password='<password>'
+    kubectl create secret generic smb-creds --from-literal=username='rts_backend_smb' --from-literal=password='<password>'
     apply the cassandra storage class yaml
 
     #TO UNINSTALL SAMBA:
@@ -138,7 +138,7 @@ For cassandra:
     kubectl apply --force-conflicts --server-side -k github.com/k8ssandra/cass-operator/config/deployments/default?ref=v1.28.0
 
     #then apply the storage class (NOT the pv and pvc)
-    kubectl -n cass-operator apply -f samba_csi/cass-storage-class.yaml
+    kubectl -n cass-operator apply -f cassandra/cass-storage-class.yaml
 
     #then apply the cassandra/cassandra_datacenter_deployment.yaml
     kubectl -n cass-operator apply -f cassandra/cassandra_datacenter_deployment.yaml
