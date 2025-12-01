@@ -1,0 +1,32 @@
+##required libraries
+
+cd /home/tharindu/projects/common_libs/
+
+#simdjson
+#Download simdjson .cpp and .h file from https://github.com/simdjson/simdjson/releases/
+
+#libuv (required by Cassandra client library)
+git clone https://github.com/libuv/libuv.git
+git checkout v1.51.0
+cd libuv
+sh autogen.sh
+./configure
+make -j 26
+make check
+sudo make install
+
+#Apache Cassandra C++ library
+git clone https://github.com/apache/cassandra-cpp-driver.git
+git checkout 2.17.1
+cd cassandra-cpp-driver
+mkdir build
+cd build
+cmake .. -DCASS_BUILD_STATIC=ON -DCASS_BUILD_SHARED=OFF -DCASS_INSTALL_HEADER=OFF
+make -j 26
+
+#Our cassandra library wrapper
+
+mkdir base_image
+cd base_image
+#put the backend_base_image container file here
+buildah build -t rts_backend_base_img:latest

@@ -1,0 +1,214 @@
+DON'T USE CONTAINERD doesnt work for some reason...
+
+pre req - we need a github token with read:packages, write:packages and delete:packages (and read users or something? Not sure)
+
+Install kubernetes:
+    swap off by editing /etc/fstab
+    ipv4 forwarding by editing /etc/sysctl.conf and uncomment #net.ipv4.ip_forward=1
+
+    https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+    https://github.com/cri-o/packaging/blob/main/README.md
+        [install cri-o kubeadm kubelet kubectl]
+
+    export KUBE_EDITOR=nano
+
+    calico (https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart):
+        sudo kubeadm init --pod-network-cidr=192.168.240.0/20
+
+        mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+        #USE THIS
+        https://raw.githubusercontent.com/projectcalico/calico/v3.30.0/manifests/calico.yaml
+
+        # NOT THIS, WILL END BADLY
+        kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.0/manifests/tigera-operator.yaml
+        kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.0/manifests/custom-resources.yaml
+
+        if you want pods to run on control plane node: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+
+        if calico pods stuck in container creating, do sudo rm -rf /etc/cni/net.d/* and then systemctl restart crio
+
+    kubectl get pods --all-namespaces
+
+
+Mostly from: https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nginx-ingress-with-cert-manager-on-digitalocean-kubernetes
+
+Configure ingress:
+
+    # ACTUAL METHOD:
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.3/deploy/static/provider/do/deploy.yaml
+    kubectl -n ingress-nginx patch deployment ingress-nginx-controller --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--enable-ssl-passthrough"}]'
+
+
+    # PLEEEASE ENSURE THIS ANNOTATION IS IN INGRESS YAMLLLLL:
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+
+    apply ingress/ingress.yaml
+
+    ### IGNORE ALL BELOW FOR THIS SECTION
+
+    https://arunsworld.medium.com/ssl-passthrough-via-kubernetes-ingress-b3eaf3c7c9da
+
+    kubectl apply -f ingress/nginx_ingress_deploy.yaml
+
+    OR:
+    MANUAL METHOD:
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.2/deploy/static/provider/do/deploy.yaml
+    kubectl edit configmap -n ingress-nginx ingress-nginx-controller
+    ---- set: use-proxy-protocol: "false":
+        apiVersion: v1
+        data:
+          use-proxy-protocol: "true"
+    kubectl -n ingress-nginx edit deployment ingress-nginx-controller
+    ---- add to args section: - --enable-ssl-passthrough
+    or just run this lol:
+    kubectl -n ingress-nginx patch deployment ingress-nginx-controller --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--enable-ssl-passthrough"}]'
+
+Haproxy ingress:
+    kubectl apply -f https://raw.githubusercontent.com/haproxytech/kubernetes-ingress/refs/tags/v3.1.14/deploy/haproxy-ingress.yaml
+
+
+Setup Metallb (Thank you Thilee on stackoverflow!!!♥ https://stackoverflow.com/questions/44110876/kubernetes-service-external-ip-pending):
+
+    # PLEASE DO THIS, OTHERWISE WONT WORK
+    kubectl label node donutsloth-1-uk node.kubernetes.io/exclude-from-external-load-balancers-
+
+    # and maybe this too? I'm not too sure
+    kubectl -n ingress-nginx patch svc ingress-nginx-controller \
+      --type='merge' \
+      -p '{"spec": {"loadBalancerIP": "192.168.0.200"}}'
+
+
+    https://metallb.io/installation/
+
+    kubectl get configmap kube-proxy -n kube-system -o yaml | \
+    sed -e "s/strictARP: false/strictARP: true/" | \
+    kubectl apply -f - -n kube-system
+
+    kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml
+
+    #kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
+    #kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
+    # On first install only
+    kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+
+    apply confimap: metallb/mllb_confimap.yaml
+
+
+# IMPORTANT- For some reason, dns resolution didn't work. Restart coredns to fix it (Thanks to https://stackoverflow.com/questions/45805483/kubernetes-pods-cant-resolve-hostnames)
+kubectl -n kube-system rollout restart deployment coredns
+
+Configure certificates:
+
+    set +o history # temporarily turn off history
+    # commands here won't be saved
+    set -o history # turn it back
+
+    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
+    #create a cloudflare token with permissions: Zone - DNS - Edit, Zone - Zone - Read and rescources: Include - All Zones
+    kubectl create secret generic cloudflare-api-token-secret -n cert-manager --from-literal=api-token='<token>'
+
+    apply the prod yamls:
+        certs/prod_issuer.yaml
+        certs/cert_rescource.yaml
+
+     get all certificate resources:
+     kubectl get Issuers,ClusterIssuers,Certificates,CertificateRequests,Orders,Challenges --all-namespaces
+
+Samba csi:
+    do we need this?? -> kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/csi-smb-driver.yaml
+    curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/install-driver.sh | bash -s v1.18.0 --
+    kubectl create secret generic smb-creds --from-literal=username='<username>' --from-literal=password='<password>'
+    kubectl apply -f samba_csi/smb-pv.yaml
+    kubectl apply -f samba_csi/smb-pvc.yaml
+
+    #TO UNINSTALL SAMBA:
+    curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/v1.18.0/deploy/uninstall-driver.sh | bash -s --
+
+Mysql on kubernetes:
+    kubectl create secret generic mysql-root-password --from-literal=password='<password>'
+    apply mysql/mysql_service-deployment
+
+standard mysql:
+    https://www.digitalocean.com/community/tutorials/how-to-install-the-latest-mysql-on-debian-10
+
+Import database:
+
+Deploy railtrack sense backend:
+    #create a github access token with permissions read:packages only
+    kubectl create secret docker-registry github-registry-secret --docker-server=https://ghcr.io --docker-username=macromelon --docker-password=<token>
+
+    apply rts_backend yamls
+
+And scale!:
+    kubectl scale --replicas 10 deployment.apps/rts-backend
+
+
+#install samba and configure share:
+sudo apt update
+sudo apt install samba
+sudo useradd -m rts_backend_smb
+sudo passwd rts_backend_smb
+sudo smbpasswd -a rts_backend_smb
+
+sudo mkdir /railtrack_sense_store
+sudo chown -R rts_backend_smb /railtrack_sense_store
+sudo mkdir /railtrack_sense_database
+sudo chown -R rts_backend_smb /railtrack_sense_database
+
+sudo nano /etc/samba/smb.conf
+
+    [railtrack_sense_store]
+       path = /railtrack_sense_store
+       read only = no
+       guest ok = no
+       valid users = rts_backend_smb
+
+    [railtrack_sense_database]
+       path = /railtrack_sense_database
+       read only = no
+       guest ok = no
+       valid users = rts_backend_smb, mysql
+
+sudo systemctl restart smbd.service
+
+folder structure of /railtrack_sense_store:
+-railtrack_sense_store
+    -addon_store
+        -1
+            -1v1.0.0.zip
+    -image_store
+        -thumbnails
+            -fallback.jpg
+        -images
+            -fallback.jpg
+        -featured
+            -fallback.jpg
+
+#To view logs of all containers in an app (eg. data-ingress-backend):
+kubectl logs -l app=data-ingress-backend #(add -f to follow)
+
+To roll tokens:
+# temporarily turn off history
+set +o history
+kubectl delete secret cloudflare-api-token-secret -n cert-manager
+#create a cloudflare token with permissions: Zone - DNS - Edit, Zone - Zone - Read and rescources: Include - All Zones (or just the stremaline addons zone)
+kubectl create secret generic cloudflare-api-token-secret -n cert-manager --from-literal=api-token='<token>'
+kubectl delete secret github-registry-secret
+#create github token with read:packages permission
+kubectl create secret docker-registry github-registry-secret --docker-server=https://ghcr.io --docker-username=macromelon --docker-password=<token>
+# turn history back on
+set -o history
+
+#For pushing images to gcr, select write:packages (repo should also auto select) permissions for token
+
+#For github releases, upload setup exe, latest.yml and blockmap files. Set tag as version (only numbers and dots, nothing else). Auto update should work then!
+
+
+#to connect to dev database machine from external ip:
+#set the ssh config for the server to use a socks proxy, address localhost:8080 no authentication
+#Then run:
+ssh -D 8080 tharindu@uk.donutsloth.net -p 3028
+#then connect!
