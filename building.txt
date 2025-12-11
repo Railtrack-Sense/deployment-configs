@@ -25,6 +25,9 @@ cmake .. -DCASS_BUILD_STATIC=ON -DCASS_BUILD_SHARED=OFF -DCASS_INSTALL_HEADER=OF
 make -j 26
 
 #Our cassandra library wrapper
+Clone it from git
+init submodules recursively
+cmake as usual
 
 mkdir base_image
 cd base_image
