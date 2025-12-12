@@ -25,6 +25,17 @@ spec:
                 port:
                   number: 443
 
+    - host: portal.api.dev.rtsense.donutsloth.net
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: portal-backend
+                port:
+                  number: 443
+
     - host: dashboard.dev.rtsense.donutsloth.net
       http:
         paths:
